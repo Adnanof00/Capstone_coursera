@@ -1,0 +1,105 @@
+---
+title: "Course Project ML"
+author: "ahmedadnane.boutahar@gmail.com"
+date: "7 mai 2019"
+output: html_document
+---
+
+##Overview and intoduction 
+
+#Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+##Library Import
+
+```{r}
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(randomForest)
+library(corrplot)
+library(gbm)
+```
+
+##Dataset
+
+```{r}
+url_training<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url_testing<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+Training_Data <- read.csv(url_training,header=TRUE)
+Testing_Data <- read.csv(url_testing,header=TRUE)
+dim(Training_Data)
+dim(Testing_Data)
+```
+
+##Clean-up
+
+```{r}
+Training_Data_valid<- Training_Data[, colSums(is.na(Training_Data)) == 0]
+Training_Data_valid<-Training_Data_valid[,-c(1:7)]
+Testing_Data_valid<- Testing_Data[, colSums(is.na(Training_Data)) == 0]
+Testing_Data_valid<-Testing_Data_valid[,-c(1:7)]
+dim(Training_Data_valid)
+dim(Testing_Data_valid)
+```
+
+##Model Building
+```{r}
+set.seed(123)
+Train_index<- createDataPartition(Training_Data_valid$classe,p = 0.7,list=FALSE)
+training_mod <- Training_Data_valid[Train_index, ]
+testing_mod <- Training_Data_valid[-Train_index, ]
+training_mod<-training_mod[,-nearZeroVar(training_mod)]
+testing_mod<-testing_mod[,-nearZeroVar(testing_mod)]
+dim(training_mod)
+dim(testing_mod)
+```
+#in the next sections we will show the results of :
+#-rf:Train with random forests
+
+```{r}
+trControl <- trainControl(method="cv", number=5)
+Model_rf <- train(classe~.,data=training_mod, method="rf",trControl=trControl, verbose=FALSE)
+train_pred_rf <- predict(Model_rf,newdata=testing_mod)
+confusion_matrix_rf <- confusionMatrix(testing_mod$classe,train_pred_rf)
+confusion_matrix_rf$table
+confusion_matrix_rf$overall[1]
+plot(Model_rf)
+plot(Model_rf$finalModel)
+```
+##-rpart:Train with classification tree
+
+
+```{r}
+Model_rpart <- train(classe~., data=training_mod, method="rpart")
+fancyRpartPlot(Model_rpart$finalModel)
+train_pred <- predict(Model_rpart,newdata=testing_mod)
+confusion_matrix_rpart <- confusionMatrix(testing_mod$classe,train_pred)
+confusion_matrix_rpart$table
+confusion_matrix_rpart$overall[1]
+```
+#we notice low accuracy
+
+##-GBM:Train with gradient boosting method
+
+```{r}
+model_GBM <- train(classe~., data=training_mod, method="gbm", trControl=trControl, verbose=FALSE)
+train_pred_GBM <- predict(model_GBM,newdata=testing_mod)
+confusion_matrix_GBM <- confusionMatrix(testing_mod$classe,train_pred_GBM)
+confusion_matrix_GBM$table
+confusion_matrix_GBM$overall[1]
+plot(model_GBM)
+```
+
+##Conclusion
+#the Random forest is the best model, which give the better accuracy
+
+```{r}
+Testing_Data_Pred <- predict(Model_rf,newdata=Testing_Data_valid)
+Testing_Data_Pred
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
